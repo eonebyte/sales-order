@@ -1,10 +1,18 @@
 // server.js
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import fs from 'fs';
+import { join } from 'desm'
 
 import oracleDB from "../web_service/configs/dbOracle.js";
 
-const fastify = Fastify({ logger: true });
+const fastify = Fastify({
+    logger: true,
+    https: {
+        key: fs.readFileSync(join(import.meta.url, 'ssl', 'adyawinsa.com.key')),
+        cert: fs.readFileSync(join(import.meta.url, 'ssl', 'sectigo_adyawinsa.com.crt')),
+    }
+});
 
 fastify.register(cors, {
     origin: '*', // Untuk development. Di produksi, ganti dengan domain frontend Anda.
