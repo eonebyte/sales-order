@@ -30,7 +30,7 @@ const { confirm } = Modal;
 // ===================================================================
 // PENTING: Sesuaikan URL ini dengan alamat server PHP Anda
 // ===================================================================
-const VALIDATION_API_URL = "http://localhost:3001/api/validate-sales-order"; // Ganti jika port atau nama file berbeda
+const VALIDATION_API_URL = "http://api-node.adyawinsa.com:3001/api/validate-sales-order"; // Ganti jika port atau nama file berbeda
 
 
 export default function ImportSalesOrderV2() {
