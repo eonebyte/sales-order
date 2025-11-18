@@ -433,7 +433,7 @@ fastify.post('/api/validate-sales-order', async (request, reply) => {
 const start = async () => {
     try {
         // Server akan berjalan di port 3001
-        await fastify.listen({ port: 3001 });
+        await fastify.listen({ port: 3001, host: '0.0.0.0' });
         fastify.log.info(`Server berjalan di port ${fastify.server.address().port}`);
     } catch (err) {
         fastify.log.error(err);
