@@ -1,0 +1,6 @@
+client/node_modules
+web_service/node_modules
+
+client/dist/
+client/.env
+web_service/.env
