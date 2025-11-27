@@ -301,7 +301,7 @@ export default function ImportSalesOrderV2() {
         "Order Reference": 180,
         "Product": 280,
         "Description": 350,
-        "Qunatity": 50,
+        "Quantity": 50,
       };
 
 
