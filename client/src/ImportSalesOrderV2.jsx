@@ -14,6 +14,8 @@ import {
   Row,
   Col,
   notification,
+  ConfigProvider,
+  Dropdown
 } from "antd";
 import {
   UploadOutlined,
@@ -34,7 +36,12 @@ const VALIDATION_API_URL = "https://api-node.adyawinsa.com:3001/api/validate-sal
 
 
 export default function ImportSalesOrderV2() {
-  const token = localStorage.getItem("access_token");
+  const token = sessionStorage.getItem("access_token");
+  const userString = sessionStorage.getItem("user");
+  const user = userString ? JSON.parse(userString) : null;
+  const [uploadedFilename, setUploadedFilename] = useState("");
+
+
   const isLoggedIn =
     token &&
     token !== "null" &&
@@ -90,6 +97,8 @@ export default function ImportSalesOrderV2() {
   };
 
   const handleFile = async (file) => {
+    setUploadedFilename(file.name); // simpan nama asli
+
     setLoading(true);
     resetState(); // Selalu reset state di awal
 
@@ -101,7 +110,9 @@ export default function ImportSalesOrderV2() {
       const workbook = read(data, { type: "array", cellDates: true });
 
       const allOrdersForSubmit = [];
-      const sheetsToProcess = workbook.SheetNames.slice(0, -1);
+      // const sheetsToProcess = workbook.SheetNames.slice(0, -1); // kecualikan sheet terakhir
+      const sheetsToProcess = workbook.SheetNames; // semua sheet termasuk sheet terakhir
+
 
       // ===================================================================
       const dateColumnNames = new Set([
@@ -272,6 +283,7 @@ export default function ImportSalesOrderV2() {
         title: "Date Ordered",
         dataIndex: "date_ordered",
         key: "date_ordered",
+        width: 100,
         render: () => dateOrderedHeader
       })
 
@@ -282,6 +294,22 @@ export default function ImportSalesOrderV2() {
         width: 60,
         align: 'center',
         render: (text, record, index) => index + 1,
+      });
+
+      const fixedWidths = {
+        "Date Promised": 105,
+        "Order Reference": 180,
+        "Product": 280,
+        "Description": 350,
+        "Qunatity": 50,
+      };
+
+
+      lColumns = lColumns.map(col => {
+        if (fixedWidths[col.key]) {
+          return { ...col, width: fixedWidths[col.key] };
+        }
+        return col;
       });
 
       setDisplayHeaders(allDisplayHeaders);
@@ -305,14 +333,33 @@ export default function ImportSalesOrderV2() {
 
   const handleSubmit = async () => {
 
-    // console.log(JSON.stringify(dataForSubmit, null, 2));
+    // console.log("with stringify", JSON.stringify(dataForSubmit));
+    // console.log("without stringify", dataForSubmit);
+
+    // openNotificationWithIcon(
+    //   'success',
+    //   <span>created successfully</span>
+    // );
+
+    // // Tunggu 3 detik lalu reset semua
+    // setTimeout(() => {
+
+    //   setDisplayHeaders([]);
+    //   setDisplayLines([]);
+    //   setDataForSubmit([]);
+    //   setHeaderColumns([]);
+    //   setLineColumns([]);
+    //   setExpandedRowKeys([]);
+    //   setShowPreview(false);
+    //   setValidationErrors([]);
+    // }, 3000);
     try {
       const response = await fetch("https://api.adyawinsa.com/api/sales-order/", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "x-api-key": "a317649531f727dae75384908a326b56",
-          "Authorization": `Bearer ${localStorage.getItem("access_token")}`
+          "Authorization": `Bearer ${sessionStorage.getItem("access_token")}`
         },
         body: JSON.stringify(dataForSubmit),
       });
@@ -325,6 +372,9 @@ export default function ImportSalesOrderV2() {
       }
 
       const responseData = await response.json();
+
+      console.log('response data : ', responseData);
+
       responseData.forEach(order => {
         openNotificationWithIcon(
           'success',
@@ -337,20 +387,38 @@ export default function ImportSalesOrderV2() {
       // -------------------------------------
       // ✅ EXPORT EXCEL
       // -------------------------------------
-      const exportRows = responseData.map(order => ({
-        "Document No": order.documentno,
-        "Total Lines": order.total_lines,
-        "TaxBase / DPP": order.tax_base,
-        "Tax Amt ": order.tax_amount,
-        "Grand Total ": order.grand_total,
-        Status: "Created",
-        "Created At": new Date().toISOString(),
-      }));
+      const exportRows = responseData.map(order => {
+
+        // Hitung total line
+        const totalLines = order.inserted_lines?.length || 0;
+
+        // Hitung total product unik
+        const uniqueProducts = new Set(
+          order.inserted_lines?.map(l => l.m_product_id)
+        );
+        const totalProducts = uniqueProducts.size;
+
+        return {
+          "Document No": order.documentno,
+          "Total Lines": totalLines,          // ⬅️ Tambahan
+          "Total Products": totalProducts,    // ⬅️ Tambahan
+          "TaxBase / DPP": order.tax_base,
+          "Tax Amt ": order.tax_amount,
+          "Grand Total ": order.grand_total,
+          Status: "Created",
+          "Created At": new Date().toISOString(),
+        };
+      });
+
 
       const worksheet = utils.json_to_sheet(exportRows);
       const workbook = { SheetNames: ["Orders"], Sheets: { Orders: worksheet } };
 
-      writeFile(workbook, `sales_order_${Date.now()}.xlsx`);
+      const originalName = uploadedFilename.replace(/\.[^/.]+$/, "");
+      // Tambahkan "-imported" + extension .xlsx
+      const exportedName = `${originalName}-imported.xlsx`;
+
+      writeFile(workbook, exportedName);
 
       // Reset State
       setDisplayHeaders([]);
@@ -372,147 +440,176 @@ export default function ImportSalesOrderV2() {
   const expandedRowRender = (record) => {
     const childLines = displayLines.filter(line => line.parentKey === record.key);
     const lineColumnsWithSpacers = [
-      { key: 'spacer-expand', width: 60 },
-      { key: 'spacer-no', width: 60 },
+      { key: 'spacer-expand', width: 0 },
+      { key: 'spacer-no', width: 50 },
       ...lineColumns,
     ];
     return <Table bordered columns={lineColumnsWithSpacers} dataSource={childLines} rowKey="key" size="small" pagination={false} />;
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("access_token");
+    // localStorage.removeItem("access_token");
+    sessionStorage.clear();
     window.location.reload(); // paksa reload agar kembali ke LoginPage
+  };
+
+  const userMenu = {
+    items: [
+      {
+        key: "logout",
+        label: (
+          <span style={{ color: "red" }}>
+            Logout
+          </span>
+        ),
+        onClick: () => handleLogout(),
+      }
+    ]
   };
 
 
   return (
     <>
       {isLoggedIn ? (
-        <div>
-          <div style={{
-            position: "absolute",
-            top: 20,
-            right: 20
+        <ConfigProvider
+          theme={{
+            components: {
+              Table: {
+                cellPaddingBlockSM: 1, //vertical
+                cellPaddingInlineSM: 4 //hori
+              },
+            },
           }}>
-            <Button danger onClick={handleLogout}>
-              Logout
-            </Button>
-          </div>
-
-          {msgApiContext}
-          {contextHolder}
-
-          {/* ================================================================ */}
-          {/* MODAL BARU: Untuk Menampilkan Error Validasi dari Backend        */}
-          {/* ================================================================ */}
-          <Modal
-            title={
-              <Space>
-                <ExclamationCircleOutlined style={{ color: 'red' }} />
-                Error Validasi Data
-              </Space>
-            }
-            open={isErrorModalVisible}
-            onOk={() => setIsErrorModalVisible(false)}
-            onCancel={() => setIsErrorModalVisible(false)}
-            footer={[
-              <Button key="back" type="primary" onClick={() => setIsErrorModalVisible(false)}>
-                Mengerti
-              </Button>,
-            ]}
-            width={700}
-          >
-            <Alert
-              message="Silakan perbaiki kesalahan berikut di file Excel Anda dan coba unggah kembali."
-              type="error"
-              showIcon
-              style={{ marginBottom: 16 }}
-            />
-            <List
-              style={{ maxHeight: '40vh', overflowY: 'auto' }}
-              bordered
-              dataSource={validationErrors}
-              renderItem={(item, index) => {
-                let errorTitle = `ORDER${item.sheetIndex + 1}`;
-
-                if (item.type === 'header') {
-                  // Jika error ada di header
-                  errorTitle += `, Header (Col: ${item.field})`;
-                } else if (item.type === 'line') {
-                  // Jika error ada di baris data
-                  errorTitle += `, Line ${(item.index + 1) * 10} (Col: ${item.field})`;
-                } else {
-                  // Fallback jika tipe tidak terdefinisi
-                  errorTitle += ` (Col: ${item.field})`;
-                }
-
-                return (
-                  <List.Item key={index}>
-                    <List.Item.Meta
-                      title={errorTitle}
-                      description={item.message}
-                    />
-                  </List.Item>
-                )
-              }
-              }
-            />
-          </Modal>
-
-          {!showPreview ? (
-            <Row justify="center" align="middle" style={{ minHeight: '60vh' }}>
-              <Col span={12} style={{ textAlign: 'center' }}>
-                <Card title={<Title level={4}>Import Sales Order</Title>}>
-                  <Upload.Dragger accept=".xls,.xlsx" beforeUpload={handleFile} showUploadList={false} disabled={loading}>
-                    <p className="ant-upload-drag-icon"><UploadOutlined /></p>
-                    <p className="ant-upload-text">Klik atau seret file ke area ini</p>
-                  </Upload.Dragger>
-                  <Button
-                    type="primary"
-                    onClick={() => document.querySelector('.ant-upload-btn input')?.click()}
-                    loading={loading}
-                    style={{ marginTop: 16, width: '100%' }}
-                  >
-                    {loading ? "Memproses & Validasi..." : "Pilih File & Validasi"}
-                  </Button>
-                </Card>
-              </Col>
-            </Row>
-          ) : (
-            <Card
-              title={<Button icon={<ArrowLeftOutlined />} onClick={() => { resetState(); }} />}
-              variant="borderless"
-              extra={
-                <Button type="primary" icon={<SendOutlined />} onClick={() => confirm({ title: "Kirim data?", onOk: handleSubmit })}>
-                  Submit
-                </Button>
-              }
+          <div>
+            <div
+              style={{
+                position: "absolute",
+                top: 20,
+                right: 20,
+              }}
             >
-              <Table
-                size="small"
-                columns={headerColumns}
-                dataSource={displayHeaders}
-                rowKey="key"
-                pagination={false}
-                scroll={{ x: "max-content" }}
-                expandable={{
-                  expandedRowRender,
-                  rowExpandable: record => displayLines.some(line => line.parentKey === record.key),
-                  expandedRowKeys: expandedRowKeys,
-                  onExpandedRowsChange: (keys) => setExpandedRowKeys(keys),
-                }}
-                rowClassName={() => 'order-header-row'}
+              <Dropdown menu={userMenu} placement="bottomRight">
+                <Button>
+                  {user?.name || "User"}
+                </Button>
+              </Dropdown>
+            </div>
+
+            {msgApiContext}
+            {contextHolder}
+
+            {/* ================================================================ */}
+            {/* MODAL BARU: Untuk Menampilkan Error Validasi dari Backend        */}
+            {/* ================================================================ */}
+            <Modal
+              title={
+                <Space>
+                  <ExclamationCircleOutlined style={{ color: 'red' }} />
+                  Error Validasi Data
+                </Space>
+              }
+              open={isErrorModalVisible}
+              onOk={() => setIsErrorModalVisible(false)}
+              onCancel={() => setIsErrorModalVisible(false)}
+              footer={[
+                <Button key="back" type="primary" onClick={() => setIsErrorModalVisible(false)}>
+                  Mengerti
+                </Button>,
+              ]}
+              width={700}
+            >
+              <Alert
+                message="Silakan perbaiki kesalahan berikut di file Excel Anda dan coba unggah kembali."
+                type="error"
+                showIcon
+                style={{ marginBottom: 16 }}
               />
-              <style>{`
+              <List
+                style={{ maxHeight: '40vh', overflowY: 'auto' }}
+                bordered
+                dataSource={validationErrors}
+                renderItem={(item, index) => {
+                  let errorTitle = `ORDER${item.sheetIndex + 1}`;
+
+                  if (item.type === 'header') {
+                    // Jika error ada di header
+                    errorTitle += `, Header (Col: ${item.field})`;
+                  } else if (item.type === 'line') {
+                    // Jika error ada di baris data
+                    errorTitle += `, Line ${(item.index + 1) * 10} (Col: ${item.field})`;
+                  } else {
+                    // Fallback jika tipe tidak terdefinisi
+                    errorTitle += ` (Col: ${item.field})`;
+                  }
+
+                  return (
+                    <List.Item key={index}>
+                      <List.Item.Meta
+                        title={errorTitle}
+                        description={item.message}
+                      />
+                    </List.Item>
+                  )
+                }
+                }
+              />
+            </Modal>
+
+            {!showPreview ? (
+              <Row justify="center" align="middle" style={{ minHeight: '60vh' }}>
+                <Col span={12} style={{ textAlign: 'center' }}>
+                  <Card title={<Title level={4}>Import Sales Order</Title>}>
+                    <Upload.Dragger accept=".xls,.xlsx" beforeUpload={handleFile} showUploadList={false} disabled={loading}>
+                      <p className="ant-upload-drag-icon"><UploadOutlined /></p>
+                      <p className="ant-upload-text">Klik atau seret file ke area ini</p>
+                    </Upload.Dragger>
+                    <Button
+                      type="primary"
+                      onClick={() => document.querySelector('.ant-upload-btn input')?.click()}
+                      loading={loading}
+                      style={{ marginTop: 16, width: '100%' }}
+                    >
+                      {loading ? "Memproses & Validasi..." : "Pilih File & Validasi"}
+                    </Button>
+                  </Card>
+                </Col>
+              </Row>
+            ) : (
+              <Card
+                title={<Button icon={<ArrowLeftOutlined />} onClick={() => { resetState(); }} />}
+                variant="borderless"
+                extra={
+                  <Button type="primary" icon={<SendOutlined />} onClick={() => confirm({ title: "Kirim data?", onOk: handleSubmit })}>
+                    Submit
+                  </Button>
+                }
+              >
+                <Table
+                  size="small"
+                  columns={headerColumns}
+                  dataSource={displayHeaders}
+                  rowKey="key"
+                  pagination={false}
+                  scroll={{ x: "max-content" }}
+                  expandable={{
+                    expandedRowRender,
+                    rowExpandable: record => displayLines.some(line => line.parentKey === record.key),
+                    expandedRowKeys: expandedRowKeys,
+                    onExpandedRowsChange: (keys) => setExpandedRowKeys(keys),
+                  }}
+                  rowClassName={() => 'order-header-row'}
+                />
+                <style>{`
             .order-header-row > td { background-color: #d9d9d9 !important; font-weight: 500; }
             .order-header-row .ant-table-expanded-row > .ant-table-cell { padding: 0 !important; }
             .order-header-row .ant-table-expanded-row .ant-table { margin: 0; }
             .ant-table-expanded-row .ant-table-thead > tr > th:nth-child(1),
             .ant-table-expanded-row .ant-table-thead > tr > th:nth-child(2) { border: none; background: white !important; }
           `}</style>
-            </Card>
-          )}
-        </div>
+              </Card>
+            )}
+          </div>
+        </ConfigProvider>
       ) : (
         <LoginPage />
       )}

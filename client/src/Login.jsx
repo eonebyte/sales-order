@@ -10,7 +10,8 @@ export default function LoginPage() {
 
     const onFinish = async (values) => {
 
-        console.log('values : ', values);
+        //testing payload login
+        // console.log('values : ', values);
 
         try {
             setLoading(true);
@@ -29,20 +30,16 @@ export default function LoginPage() {
             console.log('res login : ', response);
             console.log('result login : ', result);
 
-
-            if (!response.ok) {
+            if (!result.status) {
                 message.error(result.message || "Login failed");
                 setLoading(false);
                 return;
+            } else {
+                sessionStorage.setItem("access_token", result.token);
+                sessionStorage.setItem("user", JSON.stringify(result.user));
+                message.success("Login berhasil!");
+                setLoading(false);
             }
-
-            // -------------------------
-            //  SAVE TOKEN TO LOCALSTORAGE
-            // -------------------------
-            localStorage.setItem("access_token", result.token);
-
-            message.success("Login berhasil!");
-            setLoading(false);
 
         } catch (err) {
             console.log(err);
@@ -50,7 +47,9 @@ export default function LoginPage() {
             message.error("Terjadi kesalahan koneksi");
             setLoading(false);
         } finally {
-            window.location.reload()
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
         }
     };
 
