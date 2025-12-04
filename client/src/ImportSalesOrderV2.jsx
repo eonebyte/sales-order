@@ -111,7 +111,11 @@ export default function ImportSalesOrderV2() {
 
       const allOrdersForSubmit = [];
       // const sheetsToProcess = workbook.SheetNames.slice(0, -1); // kecualikan sheet terakhir
-      const sheetsToProcess = workbook.SheetNames; // semua sheet termasuk sheet terakhir
+      // const sheetsToProcess = workbook.SheetNames; // semua sheet termasuk sheet terakhir
+      const sheetsToProcess = workbook.SheetNames.filter(
+        (name) => name.toLowerCase() !== "reference"
+      );
+
 
 
       // ===================================================================
@@ -437,6 +441,82 @@ export default function ImportSalesOrderV2() {
 
   };
 
+
+  const handleSubmitTesting = async () => {
+    // Simulasikan proses loading
+    setLoading(true);
+
+    try {
+      // Simulasikan success notification
+      // ==================================================
+      // (Optional) Simulasi responseData seolah dari server
+      // ==================================================
+      const simulatedResponse = dataForSubmit.map((order, i) => ({
+        documentno: order.header?.order_reference || `SO-${i + 1}`,
+        inserted_lines: order.lines || [],
+        tax_base: 100000,
+        tax_amount: 11000,
+        grand_total: 111000
+      }));
+
+      simulatedResponse.forEach(order => {
+        openNotificationWithIcon(
+          'success',
+          <span>
+            Order : <strong>{order.documentno}</strong> created successfully
+          </span>
+        );
+      })
+
+      // Simulasikan export excel tetap berjalan
+      const exportRows = simulatedResponse.map((order) => {
+        const totalLines = order.inserted_lines?.length || 0;
+        const uniqueProducts = new Set(
+          order.inserted_lines?.map((l) => l.m_product_id)
+        );
+        const totalProducts = uniqueProducts.size;
+
+        return {
+          "Document No": order.documentno,
+          "Total Lines": totalLines,
+          "Total Products": totalProducts,
+          "TaxBase / DPP": order.tax_base,
+          "Tax Amt ": order.tax_amount,
+          "Grand Total ": order.grand_total,
+          Status: "Created",
+          "Created At": new Date().toISOString(),
+        };
+      });
+
+      const worksheet = utils.json_to_sheet(exportRows);
+      const workbook = { SheetNames: ["Orders"], Sheets: { Orders: worksheet } };
+
+      const originalName = uploadedFilename.replace(/\.[^/.]+$/, "");
+      const exportedName = `${originalName}-imported.xlsx`;
+
+      writeFile(workbook, exportedName);
+
+      // Reset
+      setDisplayHeaders([]);
+      setDisplayLines([]);
+      setDataForSubmit([]);
+      setHeaderColumns([]);
+      setLineColumns([]);
+      setExpandedRowKeys([]);
+      setShowPreview(false);
+      setValidationErrors([]);
+    } catch (error) {
+      console.error("Error:", error);
+      openNotificationWithIcon("error", `Error Proses: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+
+
+
   const expandedRowRender = (record) => {
     const childLines = displayLines.filter(line => line.parentKey === record.key);
     const lineColumnsWithSpacers = [
@@ -579,7 +659,7 @@ export default function ImportSalesOrderV2() {
                 title={<Button icon={<ArrowLeftOutlined />} onClick={() => { resetState(); }} />}
                 variant="borderless"
                 extra={
-                  <Button type="primary" icon={<SendOutlined />} onClick={() => confirm({ title: "Kirim data?", onOk: handleSubmit })}>
+                  <Button type="primary" icon={<SendOutlined />} onClick={() => confirm({ title: "Kirim data?", onOk: handleSubmitTesting })}>
                     Submit
                   </Button>
                 }
