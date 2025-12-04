@@ -382,7 +382,7 @@ fastify.post('/api/validate-sales-order', async (request, reply) => {
                         if (partNo) {
                             const resProduct = await connection.execute(
                                 'SELECT M_PRODUCT_ID FROM M_Product WHERE Value = :value',
-                                { value: partNo },
+                                { value: String(partNo).trim() },
                                 { outFormat: oracleDB.instanceOracleDB.OUT_FORMAT_OBJECT }
                             );
 
@@ -392,7 +392,7 @@ fastify.post('/api/validate-sales-order', async (request, reply) => {
                                         WHERE LOWER(Value) LIKE '%' || LOWER(:value) || '%'
                                         AND p.M_PRODUCT_CATEGORY_ID = 1000000, 1000034 --FG, FG INJ 
                                         AND p.ISMOULD = 'N'`,
-                                    { value: partNo },
+                                    { value: String(partNo).trim() },
                                     { outFormat: oracleDB.instanceOracleDB.OUT_FORMAT_OBJECT }
                                 );
 
