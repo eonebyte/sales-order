@@ -356,10 +356,13 @@ fastify.post('/api/validate-sales-order', async (request, reply) => {
 
             //LINES
             if (order && Array.isArray(order.lines)) {
+                const header = order.header;
                 for (let lineIndex = 0; lineIndex < order.lines.length; lineIndex++) {
                     const line = order.lines[lineIndex];
                     const lineLocation = { sheetIndex, type: 'line', index: lineIndex };
                     let err;
+
+
 
                     //Product
                     const partNo = line.product ? String(line.product).trim() : "";
@@ -411,7 +414,6 @@ fastify.post('/api/validate-sales-order', async (request, reply) => {
                                 });
                             } else {
                                 line.m_product_id = resSku.rows[0].M_PRODUCT_ID;
-                                line.product = resSku.rows[0].VALUE;
                             }
                         }
                     }
@@ -433,6 +435,42 @@ fastify.post('/api/validate-sales-order', async (request, reply) => {
 
                     err = validateDate(line.date_promised, 'Date Promised', lineLocation);
                     if (err) validationErrors.push(err);
+
+
+
+                    // Price Product
+                    if (header.m_pricelist_id && line.m_product_id) {
+
+                        // Perbaikan 1: Tambahkan 'SELECT' di awal query
+                        // Perbaikan 2: Join ke M_PriceList_Version untuk memastikan versi pricelist 'IsActive' = 'Y'
+                        const resPriceCheck = await connection.execute( // Perbaikan 3: Ganti nama variabel (jangan resProduct lagi)
+                            `SELECT 
+                                CASE 
+                                    WHEN EXISTS (
+                                        SELECT 1 
+                                        FROM M_ProductPrice pp
+                                        INNER JOIN M_PriceList_Version plv ON pp.M_PriceList_Version_ID = plv.M_PriceList_Version_ID
+                                        WHERE plv.M_PriceList_ID = :plId
+                                          AND pp.M_Product_ID = :pId
+                                          AND plv.IsActive = 'Y' -- Pastikan versi pricelist aktif
+                                    ) THEN 1 
+                                    ELSE 0 
+                                END AS is_exist
+                            FROM dual`,
+                            { plId: header.m_pricelist_id, pId: line.m_product_id },
+                            { outFormat: oracleDB.instanceOracleDB.OUT_FORMAT_OBJECT }
+                        );
+
+                        if (resPriceCheck.rows[0].IS_EXIST === 0) {
+                            validationErrors.push({
+                                ...lineLocation,
+                                field: 'Price Product',
+                                value: partNo || sku, // Gunakan partNo atau SKU agar pesan error jelas
+                                message: `${partNo || sku} tidak terdaftar pada Price List "${header.price_list}".`
+                            });
+                        }
+                    }
+
 
                 }
             }
