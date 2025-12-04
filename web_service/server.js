@@ -362,32 +362,59 @@ fastify.post('/api/validate-sales-order', async (request, reply) => {
                     let err;
 
                     //Product
-                    const partNo = line.product;
-                    if (!partNo || String(partNo).trim() === '') {
+                    const partNo = line.product ? String(line.product).trim() : "";
+                    const sku = line.sku ? String(line.sku).trim() : "";
+
+                    // Jika dua-duanya kosong
+                    if (!sku && !partNo) {
                         validationErrors.push({
                             ...lineLocation,
-                            field: 'Product',
-                            value: partNo,
-                            message: `Part No tidak boleh kosong.`
+                            field: 'SKU/Product',
+                            value: '',
+                            message: 'SKU atau Product (Part No) salah satu wajib diisi.'
                         });
                     } else {
-                        const resProduct = await connection.execute(
-                            'SELECT M_PRODUCT_ID FROM M_Product WHERE Value = :value',
-                            { value: String(partNo).trim() },
-                            { outFormat: oracleDB.instanceOracleDB.OUT_FORMAT_OBJECT }
-                        );
 
-                        if (resProduct.rows.length === 0) {
-                            validationErrors.push({
-                                ...lineLocation,
-                                field: 'PartNo Product',
-                                value: partNo,
-                                message: `PartNo Product "${partNo}" tidak ditemukan.`
-                            });
-                        } else {
-                            line.m_product_id = resProduct.rows[0].M_PRODUCT_ID
+                        // PRIORITAS PRODUCT (VALUE)
+                        if (partNo) {
+                            const resProduct = await connection.execute(
+                                'SELECT M_PRODUCT_ID FROM M_Product WHERE Value = :value',
+                                { value: partNo },
+                                { outFormat: oracleDB.instanceOracleDB.OUT_FORMAT_OBJECT }
+                            );
+
+                            if (resProduct.rows.length === 0) {
+                                validationErrors.push({
+                                    ...lineLocation,
+                                    field: 'Product',
+                                    value: partNo,
+                                    message: `Product / Part No "${partNo}" tidak ditemukan.`
+                                });
+                            } else {
+                                line.m_product_id = resProduct.rows[0].M_PRODUCT_ID;
+                            }
+
+                            // Kalau hanya SKU yang ada
+                        } else if (sku) {
+                            const resSku = await connection.execute(
+                                'SELECT p.M_PRODUCT_ID FROM M_Product p WHERE p.SKU = :sku',
+                                { sku },
+                                { outFormat: oracleDB.instanceOracleDB.OUT_FORMAT_OBJECT }
+                            );
+
+                            if (resSku.rows.length === 0) {
+                                validationErrors.push({
+                                    ...lineLocation,
+                                    field: 'SKU',
+                                    value: sku,
+                                    message: `SKU "${sku}" tidak ditemukan.`
+                                });
+                            } else {
+                                line.m_product_id = resSku.rows[0].M_PRODUCT_ID;
+                            }
                         }
                     }
+
 
                     const quantity = line.quantity;
                     const qtyAsNumber = Number(quantity);
@@ -395,7 +422,7 @@ fastify.post('/api/validate-sales-order', async (request, reply) => {
                     //     validationErrors.push({ ...lineLocation, field: 'Quantity', value: quantity, message: `Quantity harus berupa angka lebih besar dari 0.` });
                     // }
 
-                    if (quantity === null || quantity === undefined || isNaN(qtyAsNumber)) {
+                    if (quantity === null || quantity === undefined || isNaN(qtyAsNumber) || quantity === '') {
                         validationErrors.push({ ...lineLocation, field: 'Quantity', value: quantity, message: `Quantity harus berupa angka lebih besar dari 0.` });
                     }
 
