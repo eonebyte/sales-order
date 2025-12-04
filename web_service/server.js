@@ -397,7 +397,7 @@ fastify.post('/api/validate-sales-order', async (request, reply) => {
                             // Kalau hanya SKU yang ada
                         } else if (sku) {
                             const resSku = await connection.execute(
-                                'SELECT p.M_PRODUCT_ID FROM M_Product p WHERE p.SKU = :sku',
+                                'SELECT p.Value FROM M_Product p WHERE p.SKU = :sku',
                                 { sku },
                                 { outFormat: oracleDB.instanceOracleDB.OUT_FORMAT_OBJECT }
                             );
@@ -410,7 +410,7 @@ fastify.post('/api/validate-sales-order', async (request, reply) => {
                                     message: `SKU "${sku}" tidak ditemukan.`
                                 });
                             } else {
-                                line.m_product_id = resSku.rows[0].M_PRODUCT_ID;
+                                line.product = resSku.rows[0].VALUE;
                             }
                         }
                     }
