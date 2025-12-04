@@ -390,7 +390,7 @@ fastify.post('/api/validate-sales-order', async (request, reply) => {
                                 const resProductLike = await connection.execute(
                                     `   SELECT p.M_PRODUCT_ID FROM M_Product p
                                         WHERE LOWER(Value) LIKE '%' || LOWER(:value) || '%'
-                                        AND p.M_PRODUCT_CATEGORY_ID = 1000000, 1000034 --FG, FG INJ 
+                                        AND p.M_PRODUCT_CATEGORY_ID IN (1000000, 1000034) --FG, FG INJ 
                                         AND p.ISMOULD = 'N'`,
                                     { value: String(partNo).trim() },
                                     { outFormat: oracleDB.instanceOracleDB.OUT_FORMAT_OBJECT }
