@@ -373,7 +373,7 @@ fastify.post('/api/validate-sales-order', async (request, reply) => {
                     } else {
                         const resProduct = await connection.execute(
                             'SELECT M_PRODUCT_ID FROM M_Product WHERE Value = :value',
-                            { value: partNo },
+                            { value: String(partNo).trim() },
                             { outFormat: oracleDB.instanceOracleDB.OUT_FORMAT_OBJECT }
                         );
 
