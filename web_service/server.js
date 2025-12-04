@@ -391,7 +391,11 @@ fastify.post('/api/validate-sales-order', async (request, reply) => {
 
                     const quantity = line.quantity;
                     const qtyAsNumber = Number(quantity);
-                    if (quantity === null || quantity === undefined || isNaN(qtyAsNumber) || qtyAsNumber <= 0) {
+                    // if (quantity === null || quantity === undefined || isNaN(qtyAsNumber) || qtyAsNumber <= 0) {
+                    //     validationErrors.push({ ...lineLocation, field: 'Quantity', value: quantity, message: `Quantity harus berupa angka lebih besar dari 0.` });
+                    // }
+
+                    if (quantity === null || quantity === undefined || isNaN(qtyAsNumber)) {
                         validationErrors.push({ ...lineLocation, field: 'Quantity', value: quantity, message: `Quantity harus berupa angka lebih besar dari 0.` });
                     }
 
