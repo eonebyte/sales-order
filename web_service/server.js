@@ -426,7 +426,7 @@ fastify.post('/api/validate-sales-order', async (request, reply) => {
                     // }
 
                     if (quantity === null || quantity === undefined || isNaN(qtyAsNumber) || quantity === '') {
-                        validationErrors.push({ ...lineLocation, field: 'Quantity', value: quantity, message: `Quantity harus berupa angka lebih besar dari 0.` });
+                        validationErrors.push({ ...lineLocation, field: 'Quantity', value: quantity, message: `Input Quantity tidak valid. Nilai harus berupa angka dan minimal 0.`, });
                     }
 
                     // date ordered line sama dengan date ordered header
