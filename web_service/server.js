@@ -111,10 +111,10 @@ const validateFilename = async (filename) => {
         connection = await oracleDB.openConnection();
 
         const result = await connection.execute(
-            `SELECT 1 
-             FROM AD_UPLOAD_SO_LOG 
-             WHERE FILENAME = :filename
-             FETCH FIRST 1 ROWS ONLY`,
+            `SELECT 1 FROM AD_UPLOAD_SO_LOG
+                WHERE FILENAME = :filename
+                AND ROWNUM = 1
+            `,
             { filename },
             { outFormat: oracleDB.instanceOracleDB.OUT_FORMAT_OBJECT }
         );
