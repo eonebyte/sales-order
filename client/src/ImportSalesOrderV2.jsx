@@ -357,7 +357,16 @@ export default function ImportSalesOrderV2() {
     //   setShowPreview(false);
     //   setValidationErrors([]);
     // }, 3000);
+
+    // console.log('dataForSubmit : ', dataForSubmit);
+
     try {
+
+      const payloadSubmit = {
+        filename: uploadedFilename,
+        orders: dataForSubmit
+      };
+
       const response = await fetch("https://api.adyawinsa.com/api/sales-order/", {
         method: "POST",
         headers: {
@@ -365,19 +374,24 @@ export default function ImportSalesOrderV2() {
           "x-api-key": "a317649531f727dae75384908a326b56",
           "Authorization": `Bearer ${sessionStorage.getItem("access_token")}`
         },
-        body: JSON.stringify(dataForSubmit),
+        body: JSON.stringify(payloadSubmit),
       });
+
+
 
       // Validasi HTTP status
       if (!response.ok) {
-        const errorText = await response.text(); // baca pesan server
-        openNotificationWithIcon('error', `Gagal mengirim data: ${errorText}`)
-        throw new Error(`Request failed (${response.status}): ${errorText}`);
+        const jsonData = await response.json()
+        if (!jsonData.status) {
+          openNotificationWithIcon('error', `Response & Status False: ${jsonData.message}`)
+          throw new Error(`Request failed (${jsonData.status}): ${jsonData.message}`);
+        }
       }
 
-      const responseData = await response.json();
 
-      console.log('response data : ', responseData);
+
+      const responseData = await response.json();
+      // console.log('response data : ', responseData);
 
       responseData.forEach(order => {
         openNotificationWithIcon(
@@ -442,76 +456,76 @@ export default function ImportSalesOrderV2() {
   };
 
 
-  const handleSubmitTesting = async () => {
-    // Simulasikan proses loading
-    setLoading(true);
+  // const handleSubmitTesting = async () => {
+  //   // Simulasikan proses loading
+  //   setLoading(true);
 
-    try {
-      // Simulasikan success notification
-      // ==================================================
-      // (Optional) Simulasi responseData seolah dari server
-      // ==================================================
-      const simulatedResponse = dataForSubmit.map((order, i) => ({
-        documentno: order.header?.order_reference || `SO-${i + 1}`,
-        inserted_lines: order.lines || [],
-        tax_base: 100000,
-        tax_amount: 11000,
-        grand_total: 111000
-      }));
+  //   try {
+  //     // Simulasikan success notification
+  //     // ==================================================
+  //     // (Optional) Simulasi responseData seolah dari server
+  //     // ==================================================
+  //     const simulatedResponse = dataForSubmit.map((order, i) => ({
+  //       documentno: order.header?.order_reference || `SO-${i + 1}`,
+  //       inserted_lines: order.lines || [],
+  //       tax_base: 100000,
+  //       tax_amount: 11000,
+  //       grand_total: 111000
+  //     }));
 
-      simulatedResponse.forEach(order => {
-        openNotificationWithIcon(
-          'success',
-          <span>
-            Order : <strong>{order.documentno}</strong> created successfully
-          </span>
-        );
-      })
+  //     simulatedResponse.forEach(order => {
+  //       openNotificationWithIcon(
+  //         'success',
+  //         <span>
+  //           Order : <strong>{order.documentno}</strong> created successfully
+  //         </span>
+  //       );
+  //     })
 
-      // Simulasikan export excel tetap berjalan
-      const exportRows = simulatedResponse.map((order) => {
-        const totalLines = order.inserted_lines?.length || 0;
-        const uniqueProducts = new Set(
-          order.inserted_lines?.map((l) => l.m_product_id)
-        );
-        const totalProducts = uniqueProducts.size;
+  //     // Simulasikan export excel tetap berjalan
+  //     const exportRows = simulatedResponse.map((order) => {
+  //       const totalLines = order.inserted_lines?.length || 0;
+  //       const uniqueProducts = new Set(
+  //         order.inserted_lines?.map((l) => l.m_product_id)
+  //       );
+  //       const totalProducts = uniqueProducts.size;
 
-        return {
-          "Document No": order.documentno,
-          "Total Lines": totalLines,
-          "Total Products": totalProducts,
-          "TaxBase / DPP": order.tax_base,
-          "Tax Amt ": order.tax_amount,
-          "Grand Total ": order.grand_total,
-          Status: "Created",
-          "Created At": new Date().toISOString(),
-        };
-      });
+  //       return {
+  //         "Document No": order.documentno,
+  //         "Total Lines": totalLines,
+  //         "Total Products": totalProducts,
+  //         "TaxBase / DPP": order.tax_base,
+  //         "Tax Amt ": order.tax_amount,
+  //         "Grand Total ": order.grand_total,
+  //         Status: "Created",
+  //         "Created At": new Date().toISOString(),
+  //       };
+  //     });
 
-      const worksheet = utils.json_to_sheet(exportRows);
-      const workbook = { SheetNames: ["Orders"], Sheets: { Orders: worksheet } };
+  //     const worksheet = utils.json_to_sheet(exportRows);
+  //     const workbook = { SheetNames: ["Orders"], Sheets: { Orders: worksheet } };
 
-      const originalName = uploadedFilename.replace(/\.[^/.]+$/, "");
-      const exportedName = `${originalName}-imported.xlsx`;
+  //     const originalName = uploadedFilename.replace(/\.[^/.]+$/, "");
+  //     const exportedName = `${originalName}-imported.xlsx`;
 
-      writeFile(workbook, exportedName);
+  //     writeFile(workbook, exportedName);
 
-      // Reset
-      setDisplayHeaders([]);
-      setDisplayLines([]);
-      setDataForSubmit([]);
-      setHeaderColumns([]);
-      setLineColumns([]);
-      setExpandedRowKeys([]);
-      setShowPreview(false);
-      setValidationErrors([]);
-    } catch (error) {
-      console.error("Error:", error);
-      openNotificationWithIcon("error", `Error Proses: ${error.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+  //     // Reset
+  //     setDisplayHeaders([]);
+  //     setDisplayLines([]);
+  //     setDataForSubmit([]);
+  //     setHeaderColumns([]);
+  //     setLineColumns([]);
+  //     setExpandedRowKeys([]);
+  //     setShowPreview(false);
+  //     setValidationErrors([]);
+  //   } catch (error) {
+  //     console.error("Error:", error);
+  //     openNotificationWithIcon("error", `Error Proses: ${error.message}`);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
 
 
@@ -659,7 +673,7 @@ export default function ImportSalesOrderV2() {
                 title={<Button icon={<ArrowLeftOutlined />} onClick={() => { resetState(); }} />}
                 variant="borderless"
                 extra={
-                  <Button type="primary" icon={<SendOutlined />} onClick={() => confirm({ title: "Kirim data?", onOk: handleSubmitTesting })}>
+                  <Button type="primary" icon={<SendOutlined />} onClick={() => confirm({ title: "Kirim data?", onOk: handleSubmit })}>
                     Submit
                   </Button>
                 }
