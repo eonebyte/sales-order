@@ -105,14 +105,48 @@ const validateDate = (dateValue, fieldName, location) => {
     return null;
 };
 
+const validateFilename = async (filename) => {
+    let connection;
+    try {
+        connection = await oracleDB.openConnection();
+
+        const result = await connection.execute(
+            `SELECT 1 
+             FROM AD_UPLOAD_SO_LOG 
+             WHERE FILENAME = :filename
+             FETCH FIRST 1 ROWS ONLY`,
+            { filename },
+            { outFormat: oracleDB.instanceOracleDB.OUT_FORMAT_OBJECT }
+        );
+
+        // true = filename SUDAH ADA
+        return result.rows.length > 0;
+
+    } catch (error) {
+        console.error('validateFilename error:', error);
+        throw error; // biar ketahuan error DB
+    } finally {
+        if (connection) await connection.close();
+    }
+};
+
+
 
 fastify.post('/api/validate-sales-order', async (request, reply) => {
-    const allOrders = request.body;
+    const { filename, orders } = request.body;
+
+    const allOrders = orders
 
     console.log(allOrders);
 
     const validationErrors = [];
     const connection = await oracleDB.openConnection();
+
+    const isFilenameExists = await validateFilename(filename);
+
+    if (isFilenameExists) {
+        return reply.code(409).send({ message: 'Filename sudah pernah diupload.' });
+    }
 
     try {
         if (!Array.isArray(allOrders)) {
@@ -519,6 +553,8 @@ fastify.post('/api/validate-sales-order', async (request, reply) => {
 
 
 });
+
+
 
 // Jalankan server
 const start = async () => {

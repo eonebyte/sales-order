@@ -219,18 +219,23 @@ export default function ImportSalesOrderV2() {
         )
       }));
 
+      const payload = {
+        filename: file.name, // Tambahkan filename di sini
+        orders: dataForBackend
+      };
+
 
       const response = await fetch(VALIDATION_API_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(dataForBackend)
+        body: JSON.stringify(payload)
       });
 
       const result = await response.json();
 
-      const enrichedDataFromBackend = result.data;
+      const enrichedDataFromBackend = result.data || result.orders || result;
 
       // Jika respons status BUKAN OK (misal: 400), berarti ada error validasi
       if (!response.ok) {
