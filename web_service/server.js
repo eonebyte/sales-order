@@ -259,124 +259,126 @@ fastify.post('/api/validate-sales-order', async (request, reply) => {
                     }
                 }
 
-                // BP Location
-                const bpartnerLocation = header.partner_location;
-                const bpartner_id = header.c_bpartner_id;
-                if (!bpartnerLocation || String(bpartnerLocation).trim() === '') {
-                    validationErrors.push({
-                        ...headerLocation,
-                        field: 'Business Partner Location',
-                        value: bpartnerLocation,
-                        message: `Business Partner Location tidak boleh kosong.`
-                    });
-                } else {
-                    const resLocation = await connection.execute(
-                        `SELECT C_BPARTNER_LOCATION_ID, NAME 
-                            FROM C_BPARTNER_LOCATION cbl 
-                        WHERE 
-                            cbl.C_BPARTNER_ID = :bpartner_id AND NAME = :name`,
-                        { bpartner_id: bpartner_id, name: bpartnerLocation },
-                        { outFormat: oracleDB.instanceOracleDB.OUT_FORMAT_OBJECT }
-                    );
-
-                    if (resLocation.rows.length === 0) {
+                if (docType.trim() !== 'Forecast Budget') {
+                    // BP Location
+                    const bpartnerLocation = header.partner_location;
+                    const bpartner_id = header.c_bpartner_id;
+                    if (!bpartnerLocation || String(bpartnerLocation).trim() === '') {
                         validationErrors.push({
                             ...headerLocation,
                             field: 'Business Partner Location',
                             value: bpartnerLocation,
-                            message: `Business Partner Location "${bpartnerLocation}" tidak ditemukan.`
+                            message: `Business Partner Location tidak boleh kosong.`
                         });
                     } else {
-                        header.c_bpartner_location_id = resLocation.rows[0].C_BPARTNER_LOCATION_ID;
-                    }
-                }
+                        const resLocation = await connection.execute(
+                            `SELECT C_BPARTNER_LOCATION_ID, NAME 
+                            FROM C_BPARTNER_LOCATION cbl 
+                        WHERE 
+                            cbl.C_BPARTNER_ID = :bpartner_id AND NAME = :name`,
+                            { bpartner_id: bpartner_id, name: bpartnerLocation },
+                            { outFormat: oracleDB.instanceOracleDB.OUT_FORMAT_OBJECT }
+                        );
 
-                // BP Location Cycle
-                const bpartnerLocCycle = header.loc_cycle;
-                const bpLocCycleId = header.c_bpartner_location_id
-                if (!bpartnerLocCycle || String(bpartnerLocCycle).trim() === '') {
-                    header.adw_c_bpartner_loccycle_id = 0
-                    // validationErrors.push({
-                    //     ...headerLocation,
-                    //     field: 'Business Partner Location Cycle',
-                    //     value: bpartnerLocation,
-                    //     message: `Business Partner Location Cycle tidak boleh kosong.`
-                    // });
-                } else if (bpLocCycleId && bpartnerLocCycle) {
-                    const resLocCycle = await connection.execute(
-                        `SELECT ADW_C_BPARTNER_LOCCYCLE_ID 
+                        if (resLocation.rows.length === 0) {
+                            validationErrors.push({
+                                ...headerLocation,
+                                field: 'Business Partner Location',
+                                value: bpartnerLocation,
+                                message: `Business Partner Location "${bpartnerLocation}" tidak ditemukan.`
+                            });
+                        } else {
+                            header.c_bpartner_location_id = resLocation.rows[0].C_BPARTNER_LOCATION_ID;
+                        }
+                    }
+
+                    // BP Location Cycle
+                    const bpartnerLocCycle = header.loc_cycle;
+                    const bpLocCycleId = header.c_bpartner_location_id
+                    if (!bpartnerLocCycle || String(bpartnerLocCycle).trim() === '') {
+                        header.adw_c_bpartner_loccycle_id = 0
+                        // validationErrors.push({
+                        //     ...headerLocation,
+                        //     field: 'Business Partner Location Cycle',
+                        //     value: bpartnerLocation,
+                        //     message: `Business Partner Location Cycle tidak boleh kosong.`
+                        // });
+                    } else if (bpLocCycleId && bpartnerLocCycle) {
+                        const resLocCycle = await connection.execute(
+                            `SELECT ADW_C_BPARTNER_LOCCYCLE_ID 
                         FROM ADW_C_BPartner_LocCycle
                         WHERE NAME = :name AND C_BPARTNER_LOCATION_ID = :bp_loc_cycle_id`,
-                        { name: bpartnerLocCycle, bp_loc_cycle_id: bpLocCycleId },
-                        { outFormat: oracleDB.instanceOracleDB.OUT_FORMAT_OBJECT }
-                    );
+                            { name: bpartnerLocCycle, bp_loc_cycle_id: bpLocCycleId },
+                            { outFormat: oracleDB.instanceOracleDB.OUT_FORMAT_OBJECT }
+                        );
 
-                    if (resLocCycle.rows.length === 0) {
-                        validationErrors.push({
-                            ...headerLocation,
-                            field: 'Loc Cycle',
-                            value: bpartnerLocCycle,
-                            message: `Business Partner Location Cycle "${bpartnerLocCycle}" tidak ditemukan.`
-                        });
-                    } else {
-                        header.adw_c_bpartner_loccycle_id = resLocCycle.rows[0].ADW_C_BPARTNER_LOCCYCLE_ID;
+                        if (resLocCycle.rows.length === 0) {
+                            validationErrors.push({
+                                ...headerLocation,
+                                field: 'Loc Cycle',
+                                value: bpartnerLocCycle,
+                                message: `Business Partner Location Cycle "${bpartnerLocCycle}" tidak ditemukan.`
+                            });
+                        } else {
+                            header.adw_c_bpartner_loccycle_id = resLocCycle.rows[0].ADW_C_BPARTNER_LOCCYCLE_ID;
+                        }
                     }
-                }
 
-                // Price List
-                const priceList = header.price_list
-                if (!priceList || String(priceList).trim() === '') {
-                    validationErrors.push({
-                        ...headerLocation,
-                        field: 'Price List',
-                        value: priceList,
-                        message: `Price List tidak boleh kosong.`
-                    });
-                } else {
-                    const resPriceList = await connection.execute(
-                        `SELECT mp.M_PRICELIST_ID 
-                        FROM M_PRICELIST mp 
-                        WHERE NAME = :name AND mp.ISACTIVE = 'Y'`,
-                        { name: priceList },
-                        { outFormat: oracleDB.instanceOracleDB.OUT_FORMAT_OBJECT }
-                    );
-
-                    if (resPriceList.rows.length === 0) {
+                    // Price List
+                    const priceList = header.price_list
+                    if (!priceList || String(priceList).trim() === '') {
                         validationErrors.push({
                             ...headerLocation,
                             field: 'Price List',
                             value: priceList,
-                            message: `Price List "${priceList}" tidak ditemukan.`
+                            message: `Price List tidak boleh kosong.`
                         });
                     } else {
-                        header.m_pricelist_id = resPriceList.rows[0].M_PRICELIST_ID;
+                        const resPriceList = await connection.execute(
+                            `SELECT mp.M_PRICELIST_ID 
+                        FROM M_PRICELIST mp 
+                        WHERE NAME = :name AND mp.ISACTIVE = 'Y'`,
+                            { name: priceList },
+                            { outFormat: oracleDB.instanceOracleDB.OUT_FORMAT_OBJECT }
+                        );
+
+                        if (resPriceList.rows.length === 0) {
+                            validationErrors.push({
+                                ...headerLocation,
+                                field: 'Price List',
+                                value: priceList,
+                                message: `Price List "${priceList}" tidak ditemukan.`
+                            });
+                        } else {
+                            header.m_pricelist_id = resPriceList.rows[0].M_PRICELIST_ID;
+                        }
                     }
-                }
 
-                // Delivery Via
-                const delVia = header.delivery_via
-                if (!delVia || String(delVia).trim() === '') {
-                    validationErrors.push({
-                        ...headerLocation,
-                        field: 'Delivery Via',
-                        value: delVia,
-                        message: `Delivery Via tidak boleh kosong.`
-                    });
-                } else {
-                    const resDelVia = await connection.execute(
-                        `SELECT NAME FROM AD_REF_LIST arl 
-                        WHERE arl.AD_REFERENCE_ID=152 AND arl.NAME = :name -- C_ORDER DELIVERY VIA RULE`,
-                        { name: delVia },
-                        { outFormat: oracleDB.instanceOracleDB.OUT_FORMAT_OBJECT }
-                    );
-
-                    if (resDelVia.rows.length === 0) {
+                    // Delivery Via
+                    const delVia = header.delivery_via
+                    if (!delVia || String(delVia).trim() === '') {
                         validationErrors.push({
                             ...headerLocation,
                             field: 'Delivery Via',
                             value: delVia,
-                            message: `Delivery Via "${delVia}" tidak ditemukan.`
+                            message: `Delivery Via tidak boleh kosong.`
                         });
+                    } else {
+                        const resDelVia = await connection.execute(
+                            `SELECT NAME FROM AD_REF_LIST arl 
+                        WHERE arl.AD_REFERENCE_ID=152 AND arl.NAME = :name -- C_ORDER DELIVERY VIA RULE`,
+                            { name: delVia },
+                            { outFormat: oracleDB.instanceOracleDB.OUT_FORMAT_OBJECT }
+                        );
+
+                        if (resDelVia.rows.length === 0) {
+                            validationErrors.push({
+                                ...headerLocation,
+                                field: 'Delivery Via',
+                                value: delVia,
+                                message: `Delivery Via "${delVia}" tidak ditemukan.`
+                            });
+                        }
                     }
                 }
 
