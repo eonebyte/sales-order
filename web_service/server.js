@@ -326,174 +326,175 @@ fastify.post('/api/validate-sales-order', async (request, reply) => {
 
                     // Price List
                     const priceList = header.price_list
-                    if (!priceList || String(priceList).trim() === '') {
-                        validationErrors.push({
-                            ...headerLocation,
-                            field: 'Price List',
-                            value: priceList,
-                            message: `Price List tidak boleh kosong.`
-                        });
-                    } else {
-                        const resPriceList = await connection.execute(
-                            `SELECT mp.M_PRICELIST_ID 
+                    if (priceList || String(priceList).trim() !== '') {
+                        //     validationErrors.push({
+                        //         ...headerLocation,
+                        //         field: 'Price List',
+                        //         value: priceList,
+                        //         message: `Price List tidak boleh kosong.`
+                        //     });
+                        // } else 
+                        {
+                            const resPriceList = await connection.execute(
+                                `SELECT mp.M_PRICELIST_ID 
                         FROM M_PRICELIST mp 
                         WHERE NAME = :name AND mp.ISACTIVE = 'Y'`,
-                            { name: priceList },
-                            { outFormat: oracleDB.instanceOracleDB.OUT_FORMAT_OBJECT }
-                        );
+                                { name: priceList },
+                                { outFormat: oracleDB.instanceOracleDB.OUT_FORMAT_OBJECT }
+                            );
 
-                        if (resPriceList.rows.length === 0) {
-                            validationErrors.push({
-                                ...headerLocation,
-                                field: 'Price List',
-                                value: priceList,
-                                message: `Price List "${priceList}" tidak ditemukan.`
-                            });
-                        } else {
-                            header.m_pricelist_id = resPriceList.rows[0].M_PRICELIST_ID;
+                            if (resPriceList.rows.length === 0) {
+                                validationErrors.push({
+                                    ...headerLocation,
+                                    field: 'Price List',
+                                    value: priceList,
+                                    message: `Price List "${priceList}" tidak ditemukan.`
+                                });
+                            } else {
+                                header.m_pricelist_id = resPriceList.rows[0].M_PRICELIST_ID;
+                            }
                         }
-                    }
 
-                    // Delivery Via
-                    const delVia = header.delivery_via
-                    if (!delVia || String(delVia).trim() === '') {
-                        validationErrors.push({
-                            ...headerLocation,
-                            field: 'Delivery Via',
-                            value: delVia,
-                            message: `Delivery Via tidak boleh kosong.`
-                        });
-                    } else {
-                        const resDelVia = await connection.execute(
-                            `SELECT NAME FROM AD_REF_LIST arl 
-                        WHERE arl.AD_REFERENCE_ID=152 AND arl.NAME = :name -- C_ORDER DELIVERY VIA RULE`,
-                            { name: delVia },
-                            { outFormat: oracleDB.instanceOracleDB.OUT_FORMAT_OBJECT }
-                        );
-
-                        if (resDelVia.rows.length === 0) {
+                        // Delivery Via
+                        const delVia = header.delivery_via
+                        if (!delVia || String(delVia).trim() === '') {
                             validationErrors.push({
                                 ...headerLocation,
                                 field: 'Delivery Via',
                                 value: delVia,
-                                message: `Delivery Via "${delVia}" tidak ditemukan.`
+                                message: `Delivery Via tidak boleh kosong.`
                             });
-                        }
-                    }
-                }
-
-                // Validate date
-                err = validateDate(header.date_ordered, 'Date Ordered', headerLocation);
-                if (err) validationErrors.push(err);
-
-                err = validateDate(header.date_promised, 'Date Promised', headerLocation);
-                if (err) validationErrors.push(err);
-            }
-
-            //LINES
-            if (order && Array.isArray(order.lines)) {
-                const header = order.header;
-                for (let lineIndex = 0; lineIndex < order.lines.length; lineIndex++) {
-                    const line = order.lines[lineIndex];
-                    const lineLocation = { sheetIndex, type: 'line', index: lineIndex };
-                    let err;
-
-
-
-                    //Product
-                    const partNo = line.product ? String(line.product).trim() : "";
-                    const sku = line.sku ? String(line.sku).trim() : "";
-
-                    // Jika dua-duanya kosong
-                    if (!sku && !partNo) {
-                        validationErrors.push({
-                            ...lineLocation,
-                            field: 'SKU/Product',
-                            value: '',
-                            message: 'SKU atau Product (Part No) salah satu wajib diisi.'
-                        });
-                    } else {
-
-                        // PRIORITAS PRODUCT (VALUE)
-                        if (partNo) {
-                            const resProduct = await connection.execute(
-                                'SELECT M_PRODUCT_ID FROM M_Product WHERE Value = :value',
-                                { value: String(partNo).trim() },
+                        } else {
+                            const resDelVia = await connection.execute(
+                                `SELECT NAME FROM AD_REF_LIST arl 
+                        WHERE arl.AD_REFERENCE_ID=152 AND arl.NAME = :name -- C_ORDER DELIVERY VIA RULE`,
+                                { name: delVia },
                                 { outFormat: oracleDB.instanceOracleDB.OUT_FORMAT_OBJECT }
                             );
 
-                            if (resProduct.rows.length === 0) {
-                                const resProductLike = await connection.execute(
-                                    `   SELECT p.M_PRODUCT_ID FROM M_Product p
-                                        WHERE LOWER(Value) LIKE '%' || LOWER(:value) || '%'
-                                        AND p.M_PRODUCT_CATEGORY_ID IN (1000000, 1000034) --FG, FG INJ 
-                                        AND p.ISMOULD = 'N'`,
+                            if (resDelVia.rows.length === 0) {
+                                validationErrors.push({
+                                    ...headerLocation,
+                                    field: 'Delivery Via',
+                                    value: delVia,
+                                    message: `Delivery Via "${delVia}" tidak ditemukan.`
+                                });
+                            }
+                        }
+                    }
+
+                    // Validate date
+                    err = validateDate(header.date_ordered, 'Date Ordered', headerLocation);
+                    if (err) validationErrors.push(err);
+
+                    err = validateDate(header.date_promised, 'Date Promised', headerLocation);
+                    if (err) validationErrors.push(err);
+                }
+
+                //LINES
+                if (order && Array.isArray(order.lines)) {
+                    const header = order.header;
+                    for (let lineIndex = 0; lineIndex < order.lines.length; lineIndex++) {
+                        const line = order.lines[lineIndex];
+                        const lineLocation = { sheetIndex, type: 'line', index: lineIndex };
+                        let err;
+
+
+
+                        //Product
+                        const partNo = line.product ? String(line.product).trim() : "";
+                        const sku = line.sku ? String(line.sku).trim() : "";
+
+                        // Jika dua-duanya kosong
+                        if (!sku && !partNo) {
+                            validationErrors.push({
+                                ...lineLocation,
+                                field: 'SKU/Product',
+                                value: '',
+                                message: 'SKU atau Product (Part No) salah satu wajib diisi.'
+                            });
+                        } else {
+
+                            // PRIORITAS PRODUCT (VALUE)
+                            if (partNo) {
+                                const resProduct = await connection.execute(
+                                    'SELECT M_PRODUCT_ID FROM M_Product WHERE Value = :value',
                                     { value: String(partNo).trim() },
                                     { outFormat: oracleDB.instanceOracleDB.OUT_FORMAT_OBJECT }
                                 );
 
-                                if (resProductLike.rows.length === 0) {
+                                if (resProduct.rows.length === 0) {
+                                    const resProductLike = await connection.execute(
+                                        `   SELECT p.M_PRODUCT_ID FROM M_Product p
+                                        WHERE LOWER(Value) LIKE '%' || LOWER(:value) || '%'
+                                        AND p.M_PRODUCT_CATEGORY_ID IN (1000000, 1000034) --FG, FG INJ 
+                                        AND p.ISMOULD = 'N'`,
+                                        { value: String(partNo).trim() },
+                                        { outFormat: oracleDB.instanceOracleDB.OUT_FORMAT_OBJECT }
+                                    );
+
+                                    if (resProductLike.rows.length === 0) {
+                                        validationErrors.push({
+                                            ...lineLocation,
+                                            field: 'Product',
+                                            value: partNo,
+                                            message: `Product / Part No "${partNo}" tidak ditemukan.`
+                                        });
+                                    } else {
+                                        line.m_product_id = resProductLike.rows[0].M_PRODUCT_ID;
+                                    }
+                                } else {
+                                    line.m_product_id = resProduct.rows[0].M_PRODUCT_ID;
+                                }
+
+                                // Kalau hanya SKU yang ada
+                            } else if (sku) {
+                                const resSku = await connection.execute(
+                                    'SELECT p.M_PRODUCT_ID, p.Value FROM M_Product p WHERE p.SKU = :sku',
+                                    { sku },
+                                    { outFormat: oracleDB.instanceOracleDB.OUT_FORMAT_OBJECT }
+                                );
+
+                                if (resSku.rows.length === 0) {
                                     validationErrors.push({
                                         ...lineLocation,
-                                        field: 'Product',
-                                        value: partNo,
-                                        message: `Product / Part No "${partNo}" tidak ditemukan.`
+                                        field: 'SKU',
+                                        value: sku,
+                                        message: `SKU "${sku}" tidak ditemukan.`
                                     });
                                 } else {
-                                    line.m_product_id = resProductLike.rows[0].M_PRODUCT_ID;
+                                    line.m_product_id = resSku.rows[0].M_PRODUCT_ID;
                                 }
-                            } else {
-                                line.m_product_id = resProduct.rows[0].M_PRODUCT_ID;
-                            }
-
-                            // Kalau hanya SKU yang ada
-                        } else if (sku) {
-                            const resSku = await connection.execute(
-                                'SELECT p.M_PRODUCT_ID, p.Value FROM M_Product p WHERE p.SKU = :sku',
-                                { sku },
-                                { outFormat: oracleDB.instanceOracleDB.OUT_FORMAT_OBJECT }
-                            );
-
-                            if (resSku.rows.length === 0) {
-                                validationErrors.push({
-                                    ...lineLocation,
-                                    field: 'SKU',
-                                    value: sku,
-                                    message: `SKU "${sku}" tidak ditemukan.`
-                                });
-                            } else {
-                                line.m_product_id = resSku.rows[0].M_PRODUCT_ID;
                             }
                         }
-                    }
 
 
-                    const quantity = line.quantity;
-                    const qtyAsNumber = Number(quantity);
-                    // if (quantity === null || quantity === undefined || isNaN(qtyAsNumber) || qtyAsNumber <= 0) {
-                    //     validationErrors.push({ ...lineLocation, field: 'Quantity', value: quantity, message: `Quantity harus berupa angka lebih besar dari 0.` });
-                    // }
+                        const quantity = line.quantity;
+                        const qtyAsNumber = Number(quantity);
+                        // if (quantity === null || quantity === undefined || isNaN(qtyAsNumber) || qtyAsNumber <= 0) {
+                        //     validationErrors.push({ ...lineLocation, field: 'Quantity', value: quantity, message: `Quantity harus berupa angka lebih besar dari 0.` });
+                        // }
 
-                    if (quantity === null || quantity === undefined || isNaN(qtyAsNumber) || quantity === '') {
-                        validationErrors.push({ ...lineLocation, field: 'Quantity', value: quantity, message: `Input Quantity tidak valid. Nilai harus berupa angka dan minimal 0.`, });
-                    }
+                        if (quantity === null || quantity === undefined || isNaN(qtyAsNumber) || quantity === '') {
+                            validationErrors.push({ ...lineLocation, field: 'Quantity', value: quantity, message: `Input Quantity tidak valid. Nilai harus berupa angka dan minimal 0.`, });
+                        }
 
-                    // date ordered line sama dengan date ordered header
-                    // err = validateDate(line.date_ordered, 'Date Ordered', lineLocation);
-                    // if (err) validationErrors.push(err);
+                        // date ordered line sama dengan date ordered header
+                        // err = validateDate(line.date_ordered, 'Date Ordered', lineLocation);
+                        // if (err) validationErrors.push(err);
 
-                    err = validateDate(line.date_promised, 'Date Promised', lineLocation);
-                    if (err) validationErrors.push(err);
+                        err = validateDate(line.date_promised, 'Date Promised', lineLocation);
+                        if (err) validationErrors.push(err);
 
 
 
-                    // Price Product
-                    if (header.m_pricelist_id && line.m_product_id) {
+                        // Price Product
+                        if (header.m_pricelist_id && line.m_product_id) {
 
-                        // Perbaikan 1: Tambahkan 'SELECT' di awal query
-                        // Perbaikan 2: Join ke M_PriceList_Version untuk memastikan versi pricelist 'IsActive' = 'Y'
-                        const resPriceCheck = await connection.execute( // Perbaikan 3: Ganti nama variabel (jangan resProduct lagi)
-                            `SELECT 
+                            // Perbaikan 1: Tambahkan 'SELECT' di awal query
+                            // Perbaikan 2: Join ke M_PriceList_Version untuk memastikan versi pricelist 'IsActive' = 'Y'
+                            const resPriceCheck = await connection.execute( // Perbaikan 3: Ganti nama variabel (jangan resProduct lagi)
+                                `SELECT 
                                 CASE 
                                     WHEN EXISTS (
                                         SELECT 1 
@@ -506,55 +507,55 @@ fastify.post('/api/validate-sales-order', async (request, reply) => {
                                     ELSE 0 
                                 END AS is_exist
                             FROM dual`,
-                            { plId: header.m_pricelist_id, pId: line.m_product_id },
-                            { outFormat: oracleDB.instanceOracleDB.OUT_FORMAT_OBJECT }
-                        );
+                                { plId: header.m_pricelist_id, pId: line.m_product_id },
+                                { outFormat: oracleDB.instanceOracleDB.OUT_FORMAT_OBJECT }
+                            );
 
-                        if (resPriceCheck.rows[0].IS_EXIST === 0) {
-                            validationErrors.push({
-                                ...lineLocation,
-                                field: 'Price Product',
-                                value: partNo || sku, // Gunakan partNo atau SKU agar pesan error jelas
-                                message: `${partNo || sku} tidak terdaftar pada Price List "${header.price_list}".`
-                            });
+                            if (resPriceCheck.rows[0].IS_EXIST === 0) {
+                                validationErrors.push({
+                                    ...lineLocation,
+                                    field: 'Price Product',
+                                    value: partNo || sku, // Gunakan partNo atau SKU agar pesan error jelas
+                                    message: `${partNo || sku} tidak terdaftar pada Price List "${header.price_list}".`
+                                });
+                            }
+                        }
+
+
+                    }
+                }
+            };
+
+            if (validationErrors.length > 0) {
+                // Jika ada error, kirim daftar error
+                return reply.code(400).send({
+                    message: 'Ditemukan error validasi.',
+                    errors: validationErrors,
+                });
+
+            } else {
+                for (const dData of allOrders) {
+                    if (Array.isArray(dData.lines)) {
+                        for (const l of dData.lines) {
+                            delete l.product;
                         }
                     }
-
-
                 }
+
+                return reply.code(200).send({
+                    message: 'Validasi berhasil!',
+                    data: allOrders
+                });
             }
-        };
-
-        if (validationErrors.length > 0) {
-            // Jika ada error, kirim daftar error
-            return reply.code(400).send({
-                message: 'Ditemukan error validasi.',
-                errors: validationErrors,
-            });
-
-        } else {
-            for (const dData of allOrders) {
-                if (Array.isArray(dData.lines)) {
-                    for (const l of dData.lines) {
-                        delete l.product;
-                    }
-                }
-            }
-
-            return reply.code(200).send({
-                message: 'Validasi berhasil!',
-                data: allOrders
-            });
+        } catch (err) {
+            console.error(err);
+            return reply.code(500).send({ message: "Server error", error: err });
+        } finally {
+            await connection.close(); // Tutup 1x saja
         }
-    } catch (err) {
-        console.error(err);
-        return reply.code(500).send({ message: "Server error", error: err });
-    } finally {
-        await connection.close(); // Tutup 1x saja
-    }
 
 
-});
+    });
 
 
 
