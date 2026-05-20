@@ -353,6 +353,8 @@ fastify.post('/api/validate-sales-order', async (request, reply) => {
                             } else {
                                 header.m_pricelist_id = resPriceList.rows[0].M_PRICELIST_ID;
                             }
+                        } else {
+                            header.m_pricelist_id = "";
                         }
 
                         // Delivery Via
