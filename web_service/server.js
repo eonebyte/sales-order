@@ -334,7 +334,7 @@ fastify.post('/api/validate-sales-order', async (request, reply) => {
                         //         message: `Price List tidak boleh kosong.`
                         //     });
                         // } else 
-                        {
+                        // {
                             const resPriceList = await connection.execute(
                                 `SELECT mp.M_PRICELIST_ID 
                         FROM M_PRICELIST mp 
